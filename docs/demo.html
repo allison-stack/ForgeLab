@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ForgeLab — Multi-Agent Engineering Team</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #080A0F;
+    --surface:   #0F1118;
+    --elevated:  #171B25;
+    --border:    #232735;
+    --border-hi: #2E3447;
+    --amber:     #F5A623;
+    --amber-dim: #C47D0E;
+    --amber-glow:#F5A62322;
+    --teal:      #00C9A7;
+    --teal-dim:  #00876F;
+    --red:       #FF5C5C;
+    --green:     #3DDB85;
+    --purple:    #9B7FFF;
+    --text:      #C8CEDF;
+    --text-dim:  #5E6680;
+    --text-hi:   #EEF1FA;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'IBM Plex Sans', sans-serif;
+    --display:   'Syne', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    height: 52px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 24px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .logo {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--text-hi);
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: var(--amber);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    animation: pulse-icon 3s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse-icon {
+    0%,100% { box-shadow: 0 0 0 0 var(--amber-glow); }
+    50% { box-shadow: 0 0 20px 4px var(--amber-glow); }
+  }
+  .tagline {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.03em;
+    border-left: 1px solid var(--border);
+    padding-left: 24px;
+  }
+  .topbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--teal);
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--teal);
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .cost-pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--amber);
+    background: var(--amber-glow);
+    border: 1px solid var(--amber-dim);
+    border-radius: 4px;
+    padding: 3px 10px;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    display: grid;
+    grid-template-columns: 240px 1fr 320px;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ── LEFT: AGENT PANEL ── */
+  .agent-panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 16px 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .agents-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+  .agent-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+  }
+  .agent-item:hover { background: var(--elevated); }
+  .agent-item.active { background: var(--elevated); }
+  .agent-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 8px; bottom: 8px;
+    width: 2px;
+    background: var(--amber);
+    border-radius: 0 2px 2px 0;
+  }
+  .agent-item.running .agent-icon { animation: spin-glow 2s linear infinite; }
+
+  @keyframes spin-glow {
+    0%   { box-shadow: 0 0 6px var(--amber); }
+    50%  { box-shadow: 0 0 14px var(--amber); }
+    100% { box-shadow: 0 0 6px var(--amber); }
+  }
+
+  .agent-icon {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    transition: all 0.2s;
+  }
+  .agent-icon.idle      { opacity: 0.4; }
+  .agent-icon.waiting   { border-color: var(--border-hi); opacity: 0.7; }
+  .agent-icon.running   { border-color: var(--amber); background: var(--amber-glow); }
+  .agent-icon.done      { border-color: var(--teal); background: #00C9A711; }
+  .agent-icon.reviewing { border-color: var(--purple); background: #9B7FFF11; }
+
+  .agent-meta { flex: 1; min-width: 0; }
+  .agent-name {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-hi);
+    letter-spacing: 0.01em;
+  }
+  .agent-model {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .agent-item.running .agent-model { color: var(--amber); }
+  .agent-item.done .agent-model    { color: var(--teal); }
+
+  .agent-status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-top: 4px;
+    flex-shrink: 0;
+    background: var(--border-hi);
+    transition: background 0.3s;
+  }
+  .agent-item.running .agent-status-dot  { background: var(--amber); animation: blink 1s infinite; }
+  .agent-item.done    .agent-status-dot  { background: var(--teal); }
+  .agent-item.reviewing .agent-status-dot{ background: var(--purple); animation: blink 1.5s infinite; }
+
+  /* pipeline connector lines */
+  .pipeline-connector {
+    margin-left: 39px;
+    height: 12px;
+    border-left: 1px dashed var(--border);
+  }
+  .pipeline-connector.lit { border-color: var(--amber-dim); }
+
+  /* ── METRICS SECTION ── */
+  .metrics-section {
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    flex-shrink: 0;
+  }
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+  }
+  .metric-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+  }
+  .metric-value {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-hi);
+  }
+  .metric-value.amber { color: var(--amber); }
+  .metric-value.teal  { color: var(--teal); }
+  .metric-value.green { color: var(--green); }
+
+  /* ── CENTER: CHAT ── */
+  .chat-area {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .chat-task-bar {
+    background: var(--elevated);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .task-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: var(--amber-glow);
+    color: var(--amber);
+    border: 1px solid var(--amber-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .task-text {
+    font-size: 12px;
+    color: var(--text-hi);
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    scroll-behavior: smooth;
+  }
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-track { background: transparent; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .msg {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    animation: fadeUp 0.35s cubic-bezier(0.22,1,0.36,1) both;
+    border-bottom: 1px solid transparent;
+  }
+  .msg:not(:last-child) { border-bottom-color: var(--border); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg-avatar {
+    width: 28px; height: 28px;
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .msg-body { flex: 1; min-width: 0; }
+  .msg-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .msg-from {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+  }
+  .msg-model {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+  .msg-time {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-left: auto;
+  }
+  .msg-content {
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  .msg-content code {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--teal);
+  }
+  .msg-content .code-block {
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--text);
+    overflow-x: auto;
+    position: relative;
+  }
+  .msg-content .code-block .kw   { color: #FF79C6; }
+  .msg-content .code-block .fn   { color: #50FA7B; }
+  .msg-content .code-block .str  { color: #F1FA8C; }
+  .msg-content .code-block .cm   { color: var(--text-dim); font-style: italic; }
+  .msg-content .code-block .num  { color: var(--amber); }
+
+  .msg-content .finding {
+    background: var(--elevated);
+    border-left: 2px solid var(--amber);
+    padding: 6px 10px;
+    margin-top: 6px;
+    border-radius: 0 4px 4px 0;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .msg-content .issue {
+    background: var(--elevated);
+    border-left: 2px solid var(--red);
+    padding: 6px 10px;
+    margin-top: 6px;
+    border-radius: 0 4px 4px 0;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .msg-content .pass {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #3DDB8511;
+    border: 1px solid #3DDB8544;
+    border-radius: 4px;
+    padding: 4px 10px;
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--green);
+  }
+
+  /* USER MESSAGE */
+  .msg.user .msg-avatar { background: #7C3AED22; border: 1px solid #7C3AED44; }
+  .msg.user .msg-from   { color: #A78BFA; }
+  .msg.user .msg-content { color: var(--text-hi); }
+
+  /* AGENT MESSAGES */
+  .msg.router   .msg-avatar { background: var(--amber-glow); border: 1px solid var(--amber-dim); }
+  .msg.router   .msg-from   { color: var(--amber); }
+  .msg.researcher .msg-avatar { background: #00C9A711; border: 1px solid #00C9A744; }
+  .msg.researcher .msg-from   { color: var(--teal); }
+  .msg.coder    .msg-avatar { background: #60A5FA11; border: 1px solid #60A5FA44; }
+  .msg.coder    .msg-from   { color: #60A5FA; }
+  .msg.reviewer .msg-avatar { background: #9B7FFF11; border: 1px solid #9B7FFF44; }
+  .msg.reviewer .msg-from   { color: var(--purple); }
+  .msg.verifier .msg-avatar { background: #3DDB8511; border: 1px solid #3DDB8544; }
+  .msg.verifier .msg-from   { color: var(--green); }
+  .msg.system   .msg-avatar { background: var(--elevated); border: 1px solid var(--border); }
+  .msg.system   .msg-from   { color: var(--text-dim); }
+
+  /* TYPING INDICATOR */
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 4px 0;
+  }
+  .typing-indicator span {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.15s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.30s; }
+  @keyframes bounce {
+    0%,60%,100% { transform: translateY(0); }
+    30% { transform: translateY(-4px); }
+  }
+
+  /* INTERRUPT BAR */
+  .interrupt-bar {
+    background: var(--elevated);
+    border: 1px solid var(--border-hi);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    padding: 10px 16px;
+    margin: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .interrupt-bar:focus-within {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 1px var(--amber-dim);
+  }
+  .interrupt-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .interrupt-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--text-hi);
+  }
+  .interrupt-input::placeholder { color: var(--text-dim); }
+  .interrupt-hint {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    padding: 6px 20px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+  kbd {
+    font-family: var(--mono);
+    font-size: 9px;
+    background: var(--elevated);
+    border: 1px solid var(--border-hi);
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: var(--text);
+  }
+
+  /* ── RIGHT: DETAILS PANEL ── */
+  .details-panel {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .details-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px 0;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab.active {
+    color: var(--amber);
+    border-bottom-color: var(--amber);
+  }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .tab-content {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+    flex-direction: column;
+  }
+  .tab-content.active { display: flex; }
+  .tab-content::-webkit-scrollbar { width: 3px; }
+  .tab-content::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* BROWSER PANEL */
+  .browser-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .browser-chrome {
+    background: var(--elevated);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .browser-dots { display: flex; gap: 5px; }
+  .browser-dots span {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border-hi);
+  }
+  .browser-url {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .browser-viewport {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background: #fff;
+  }
+  .browser-screenshot {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+    display: block;
+  }
+  .browser-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    background: var(--elevated);
+  }
+  .browser-overlay-text {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+    line-height: 1.7;
+  }
+  .browser-scanning-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--amber), transparent);
+    top: 0;
+    animation: scan 2s linear infinite;
+    opacity: 0;
+  }
+  .browser-scanning-line.active { opacity: 1; }
+  @keyframes scan {
+    from { top: 0; }
+    to   { top: 100%; }
+  }
+
+  /* SIMULATED PYTHON DOCS PAGE */
+  .fake-browser-content {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background: #1a1b26;
+    padding: 16px;
+  }
+  .fake-doc-header {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: #e2e8f0;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2d3748;
+  }
+  .fake-doc-subtitle {
+    font-size: 11px;
+    color: #718096;
+    font-family: var(--mono);
+    margin-bottom: 12px;
+  }
+  .fake-doc-section {
+    margin-bottom: 14px;
+  }
+  .fake-doc-h3 {
+    font-size: 11px;
+    font-weight: 600;
+    color: #63b3ed;
+    font-family: var(--mono);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .fake-doc-p {
+    font-size: 10px;
+    line-height: 1.7;
+    color: #a0aec0;
+    font-family: var(--sans);
+    margin-bottom: 8px;
+  }
+  .fake-code {
+    background: #0d1117;
+    border: 1px solid #2d3748;
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #e2e8f0;
+    line-height: 1.7;
+    margin-bottom: 8px;
+  }
+  .fake-code .hl { color: #f5a623; font-weight: 500; }
+
+  /* MODEL CONFIG TAB */
+  .model-config {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .config-row {
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    transition: border-color 0.15s;
+  }
+  .config-row:hover { border-color: var(--border-hi); }
+  .config-row.active { border-color: var(--amber); }
+  .config-agent {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+  .config-agent-name {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--text-hi);
+  }
+  .config-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 2px;
+    margin-left: auto;
+  }
+  .config-badge.optimal {
+    background: #3DDB8511;
+    color: var(--green);
+    border: 1px solid #3DDB8533;
+  }
+  .config-badge.active {
+    background: var(--amber-glow);
+    color: var(--amber);
+    border: 1px solid var(--amber-dim);
+    animation: blink 1.2s infinite;
+  }
+  .config-model-name {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--teal);
+    margin-bottom: 3px;
+  }
+  .config-bench {
+    display: flex;
+    gap: 10px;
+  }
+  .bench-item {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+  .bench-item span { color: var(--text); }
+
+  /* VERIFICATION TAB */
+  .verify-panel {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .verify-header {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .test-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--elevated);
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 10px;
+    animation: fadeUp 0.3s ease both;
+  }
+  .test-icon { font-size: 11px; flex-shrink: 0; }
+  .test-name { flex: 1; color: var(--text); }
+  .test-time { color: var(--text-dim); }
+  .test-item.pass { border-color: #3DDB8533; }
+  .test-item.fail { border-color: #FF5C5C33; }
+  .test-item.pending { opacity: 0.5; }
+
+  .docker-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--elevated);
+    border: 1px solid var(--border-hi);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 4px;
+  }
+  .docker-text {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .docker-text span { color: var(--teal); }
+
+  /* PROGRESS BAR AT BOTTOM */
+  .progress-strip {
+    height: 3px;
+    background: var(--border);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+    width: 0%;
+    transition: width 0.8s ease;
+  }
+
+  /* INTERRUPT TOAST */
+  .interrupt-toast {
+    position: fixed;
+    top: 60px; right: 20px;
+    background: var(--elevated);
+    border: 1px solid var(--amber);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--amber);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    z-index: 100;
+    animation: slideIn 0.3s cubic-bezier(0.22,1,0.36,1);
+    display: none;
+  }
+  .interrupt-toast.show { display: block; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  /* DEMO REPLAY BUTTON */
+  .replay-btn {
+    position: fixed;
+    bottom: 20px; right: 20px;
+    background: var(--amber);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    z-index: 50;
+    transition: opacity 0.2s;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .replay-btn.show { opacity: 1; pointer-events: all; }
+  .replay-btn:hover { opacity: 0.85; }
+
+  /* scrollbar global */
+  * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="logo">
+    <div class="logo-icon"></div>
+    ForgeLab
+  </div>
+  <div class="tagline">multi-agent engineering team · benchmark-optimal routing</div>
+  <div class="topbar-right">
+    <div class="status-indicator">
+      <div class="dot"></div>
+      <span id="status-text">INITIALIZING</span>
+    </div>
+    <div class="cost-pill" id="cost-display">$0.00</div>
+  </div>
+</header>
+
+<div class="progress-strip">
+  <div class="progress-fill" id="progress-fill"></div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main">
+
+  <!-- LEFT: AGENTS -->
+  <div class="agent-panel">
+    <div class="panel-header">Agent Pipeline</div>
+    <div class="agents-list" id="agents-list">
+
+      <div class="agent-item idle" id="agent-router">
+        <div class="agent-icon idle">⚡</div>
+        <div class="agent-meta">
+          <div class="agent-name">Router</div>
+          <div class="agent-model">claude-haiku-4-5</div>
+        </div>
+        <div class="agent-status-dot"></div>
+      </div>
+      <div class="pipeline-connector" id="conn-1"></div>
+
+      <div class="agent-item idle" id="agent-researcher">
+        <div class="agent-icon idle">🔭</div>
+        <div class="agent-meta">
+          <div class="agent-name">Researcher</div>
+          <div class="agent-model">gemini-2.5-pro</div>
+        </div>
+        <div class="agent-status-dot"></div>
+      </div>
+      <div class="pipeline-connector" id="conn-2"></div>
+
+      <div class="agent-item idle" id="agent-architect">
+        <div class="agent-icon idle">🏛</div>
+        <div class="agent-meta">
+          <div class="agent-name">Architect</div>
+          <div class="agent-model">claude-opus-4-6</div>
+        </div>
+        <div class="agent-status-dot"></div>
+      </div>
+      <div class="pipeline-connector" id="conn-3"></div>
+
+      <div class="agent-item idle" id="agent-coder">
+        <div class="agent-icon idle">⌨️</div>
+        <div class="agent-meta">
+          <div class="agent-name">Coder</div>
+          <div class="agent-model">claude-sonnet-4-6</div>
+        </div>
+        <div class="agent-status-dot"></div>
+      </div>
+      <div class="pipeline-connector" id="conn-4"></div>
+
+      <div class="agent-item idle" id="agent-reviewer">
+        <div class="agent-icon idle">🔍</div>
+        <div class="agent-meta">
+          <div class="agent-name">Reviewer</div>
+          <div class="agent-model">deepseek-r1</div>
+        </div>
+        <div class="agent-status-dot"></div>
+      </div>
+      <div class="pipeline-connector" id="conn-5"></div>
+
+      <div class="agent-item idle" id="agent-verifier">
+        <div class="agent-icon idle">🧪</div>
+        <div class="agent-meta">
+          <div class="agent-name">Verifier</div>
+          <div class="agent-model">haiku-4-5 + docker</div>
+        </div>
+        <div class="agent-status-dot"></div>
+      </div>
+    </div>
+
+    <div class="metrics-section">
+      <div class="metric-row">
+        <span class="metric-label">TOKENS</span>
+        <span class="metric-value amber" id="metric-tokens">0</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">ELAPSED</span>
+        <span class="metric-value" id="metric-elapsed">0.0s</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">RETRIES</span>
+        <span class="metric-value" id="metric-retries">0 / 2</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">SAVINGS</span>
+        <span class="metric-value teal" id="metric-savings">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: CHAT -->
+  <div class="chat-area">
+    <div class="chat-task-bar">
+      <div class="task-badge" id="task-badge">PENDING</div>
+      <div class="task-text" id="task-text">Waiting for task...</div>
+    </div>
+
+    <div class="chat-messages" id="chat-messages">
+      <!-- seeded with user message -->
+    </div>
+
+    <div class="interrupt-bar">
+      <div class="interrupt-icon">⚡</div>
+      <input class="interrupt-input" id="interrupt-input" placeholder="Interrupt agents — redirect, add requirements, ask questions..." />
+    </div>
+    <div class="interrupt-hint">
+      Press <kbd>Enter</kbd> to interrupt · agents pause and adapt dynamically
+    </div>
+  </div>
+
+  <!-- RIGHT: DETAILS -->
+  <div class="details-panel">
+    <div class="details-tabs">
+      <div class="tab active" data-tab="browser">BROWSER</div>
+      <div class="tab" data-tab="models">MODELS</div>
+      <div class="tab" data-tab="verify">VERIFY</div>
+    </div>
+
+    <!-- BROWSER TAB -->
+    <div class="tab-content active" id="tab-browser">
+      <div class="browser-panel">
+        <div class="browser-chrome">
+          <div class="browser-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="browser-url" id="browser-url">about:blank</div>
+        </div>
+        <div class="browser-viewport">
+          <div class="browser-overlay" id="browser-overlay">
+            <div style="font-size:28px;opacity:0.2">🌐</div>
+            <div class="browser-overlay-text">Browser idle<br><span style="font-size:9px">Researcher activates Playwright<br>when web search is needed</span></div>
+          </div>
+          <div class="browser-scanning-line" id="scan-line"></div>
+          <div class="fake-browser-content" id="browser-content" style="display:none">
+            <div class="fake-doc-header">requests.Session — HTTP for Humans</div>
+            <div class="fake-doc-subtitle">docs.python-requests.org / api / Session / timeout</div>
+            <div class="fake-doc-section">
+              <div class="fake-doc-h3">Timeout parameter</div>
+              <div class="fake-doc-p">You can tell Requests to stop waiting for a response after a given number of seconds with the <code>timeout</code> parameter. Pass a tuple to specify separate connection and read timeouts.</div>
+              <div class="fake-code"><span class="hl">requests.get</span>(url, <span class="hl">timeout</span>=(connect, read))<br><br><span style="color:#718096"># connect: time to establish connection</span><br><span style="color:#718096"># read:    time to wait for server response</span><br><br><span class="hl">requests.get</span>(url, <span class="hl">timeout</span>=(<span style="color:#f1fa8c">10</span>, <span style="color:#f1fa8c">30</span>))</div>
+            </div>
+            <div class="fake-doc-section">
+              <div class="fake-doc-h3">OAuth flows</div>
+              <div class="fake-doc-p">OAuth token exchanges can take 15–30s on slow connections. Hardcoded short timeouts are a common source of OAuth failures. Recommended minimums for OAuth:</div>
+              <div class="fake-code">connect_timeout = <span class="hl">10</span>   <span style="color:#718096"># reasonable for most networks</span><br>read_timeout   = <span class="hl">30</span>   <span style="color:#718096"># OAuth providers can be slow</span></div>
+            </div>
+            <div class="fake-doc-section">
+              <div class="fake-doc-h3">Tenacity retry integration</div>
+              <div class="fake-doc-p">For production OAuth flows, combine timeout tuples with exponential backoff via <code>tenacity</code>:</div>
+              <div class="fake-code"><span class="hl">@retry</span>(<br>  <span style="color:#f1fa8c">wait</span>=wait_exponential(multiplier=<span style="color:#f1fa8c">1</span>, min=<span style="color:#f1fa8c">2</span>, max=<span style="color:#f1fa8c">10</span>),<br>  <span style="color:#f1fa8c">stop</span>=stop_after_attempt(<span style="color:#f1fa8c">3</span>),<br>  <span style="color:#f1fa8c">retry</span>=retry_if_exception_type(Timeout)<br>)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODELS TAB -->
+    <div class="tab-content" id="tab-models">
+      <div class="model-config" id="model-config">
+        <div class="config-row" id="cfg-router">
+          <div class="config-agent">
+            <span style="font-size:13px">⚡</span>
+            <div class="config-agent-name">Router</div>
+            <div class="config-badge optimal">OPTIMAL</div>
+          </div>
+          <div class="config-model-name">claude-haiku-4-5</div>
+          <div class="config-bench">
+            <div class="bench-item">HumanEval <span>92%</span></div>
+            <div class="bench-item">Cost <span>$5/1M</span></div>
+          </div>
+        </div>
+        <div class="config-row" id="cfg-researcher">
+          <div class="config-agent">
+            <span style="font-size:13px">🔭</span>
+            <div class="config-agent-name">Researcher</div>
+            <div class="config-badge optimal">OPTIMAL</div>
+          </div>
+          <div class="config-model-name">gemini-2.5-pro</div>
+          <div class="config-bench">
+            <div class="bench-item">MMLU-Pro <span>87.2%</span></div>
+            <div class="bench-item">Cost <span>$10/1M</span></div>
+          </div>
+        </div>
+        <div class="config-row" id="cfg-architect">
+          <div class="config-agent">
+            <span style="font-size:13px">🏛</span>
+            <div class="config-agent-name">Architect</div>
+            <div class="config-badge optimal">OPTIMAL</div>
+          </div>
+          <div class="config-model-name">claude-opus-4-6</div>
+          <div class="config-bench">
+            <div class="bench-item">SWE-bench <span>87.6%</span></div>
+            <div class="bench-item">Cost <span>$25/1M</span></div>
+          </div>
+        </div>
+        <div class="config-row" id="cfg-coder">
+          <div class="config-agent">
+            <span style="font-size:13px">⌨️</span>
+            <div class="config-agent-name">Coder</div>
+            <div class="config-badge optimal">OPTIMAL</div>
+          </div>
+          <div class="config-model-name">claude-sonnet-4-6</div>
+          <div class="config-bench">
+            <div class="bench-item">SWE-bench <span>79.6%</span></div>
+            <div class="bench-item">Cost <span>$15/1M</span></div>
+          </div>
+        </div>
+        <div class="config-row" id="cfg-reviewer">
+          <div class="config-agent">
+            <span style="font-size:13px">🔍</span>
+            <div class="config-agent-name">Reviewer</div>
+            <div class="config-badge optimal">OPTIMAL</div>
+          </div>
+          <div class="config-model-name">deepseek-r1</div>
+          <div class="config-bench">
+            <div class="bench-item">Reasoning <span>Strong</span></div>
+            <div class="bench-item">Cost <span>$8/1M</span></div>
+          </div>
+        </div>
+        <div class="config-row" id="cfg-verifier">
+          <div class="config-agent">
+            <span style="font-size:13px">🧪</span>
+            <div class="config-agent-name">Verifier</div>
+            <div class="config-badge optimal">OPTIMAL</div>
+          </div>
+          <div class="config-model-name">haiku-4-5 + Docker</div>
+          <div class="config-bench">
+            <div class="bench-item">HumanEval <span>92%</span></div>
+            <div class="bench-item">Cost <span>$5/1M</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VERIFY TAB -->
+    <div class="tab-content" id="tab-verify">
+      <div class="verify-panel" id="verify-panel">
+        <div class="docker-badge">
+          <span style="font-size:18px">🐳</span>
+          <div class="docker-text">
+            <span>testforge-sandbox</span> container<br>
+            deterministic execution · no hallucination
+          </div>
+        </div>
+        <div class="verify-header">Test Results</div>
+        <div id="test-results">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);text-align:center;padding:20px 0">
+            Verifier not yet active
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- INTERRUPT TOAST -->
+<div class="interrupt-toast" id="interrupt-toast">
+  ⚡ Interrupt received — agents adapting...
+</div>
+
+<!-- REPLAY BUTTON -->
+<button class="replay-btn" id="replay-btn" onclick="startDemo()">↺ Replay Demo</button>
+
+<script>
+// ── DEMO ENGINE ──────────────────────────────────────────────────────────────
+
+const chat = document.getElementById('chat-messages');
+const statusText = document.getElementById('status-text');
+const costDisplay = document.getElementById('cost-display');
+const progressFill = document.getElementById('progress-fill');
+const taskBadge = document.getElementById('task-badge');
+const taskText = document.getElementById('task-text');
+const metricTokens = document.getElementById('metric-tokens');
+const metricElapsed = document.getElementById('metric-elapsed');
+const metricRetries = document.getElementById('metric-retries');
+const metricSavings = document.getElementById('metric-savings');
+const replayBtn = document.getElementById('replay-btn');
+
+let totalTokens = 0;
+let totalCost = 0;
+let startTime = null;
+let elapsedInterval = null;
+let demoTimeout = null;
+let interruptFired = false;
+
+// TABS
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = tab.dataset.tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + target).classList.add('active');
+  });
+});
+
+// INTERRUPT INPUT
+document.getElementById('interrupt-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !interruptFired) {
+    const val = e.target.value.trim();
+    if (val) {
+      interruptFired = true;
+      e.target.value = '';
+      fireInterrupt(val);
+    }
+  }
+});
+
+function setAgentState(id, state) {
+  const el = document.getElementById('agent-' + id);
+  if (!el) return;
+  el.className = 'agent-item ' + state;
+  const icon = el.querySelector('.agent-icon');
+  icon.className = 'agent-icon ' + state;
+}
+
+function litConnector(id) {
+  const el = document.getElementById('conn-' + id);
+  if (el) el.classList.add('lit');
+}
+
+function setProgress(pct) {
+  progressFill.style.width = pct + '%';
+}
+
+function addCost(dollars, tokens) {
+  totalCost += dollars;
+  totalTokens += tokens;
+  costDisplay.textContent = '$' + totalCost.toFixed(2);
+  metricTokens.textContent = totalTokens.toLocaleString();
+}
+
+function addMessage(cls, avatar, from, model, time, contentHtml) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + cls;
+  div.innerHTML = `
+    <div class="msg-avatar">${avatar}</div>
+    <div class="msg-body">
+      <div class="msg-header">
+        <div class="msg-from">${from}</div>
+        <div class="msg-model">${model}</div>
+        <div class="msg-time">${time}</div>
+      </div>
+      <div class="msg-content">${contentHtml}</div>
+    </div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+function addTyping(cls, avatar, from) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + cls;
+  div.innerHTML = `
+    <div class="msg-avatar">${avatar}</div>
+    <div class="msg-body">
+      <div class="msg-header">
+        <div class="msg-from">${from}</div>
+      </div>
+      <div class="typing-indicator">
+        <span></span><span></span><span></span>
+      </div>
+    </div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+function delay(ms) {
+  return new Promise(res => { demoTimeout = setTimeout(res, ms); });
+}
+
+function fireInterrupt(text) {
+  addMessage('user', '👤', 'You', 'interrupt', now(), `⚡ ${text}`);
+  const toast = document.getElementById('interrupt-toast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+  chat.scrollTop = chat.scrollHeight;
+  // queue interrupt response
+  setTimeout(() => handleInterrupt(text), 1500);
+}
+
+async function handleInterrupt(text) {
+  const t = addTyping('coder', '⌨️', 'Coder');
+  await delay(1800);
+  t.remove();
+  addMessage('coder', '⌨️', 'Coder', 'claude-sonnet-4-6', now(),
+    `⚡ Interrupt received. Pausing current implementation.<br><br>Querying Researcher: <em>what retry library does this project use?</em>`);
+  await delay(1600);
+  addMessage('researcher', '🔭', 'Researcher', 'gemini-2.5-pro', now(),
+    `<div class="finding">→ Codebase search: project uses <code>tenacity</code> for retries (found in <code>requirements.txt</code> and existing usages in <code>api/client.py</code>)</div>`);
+  await delay(1400);
+  addMessage('coder', '⌨️', 'Coder', 'claude-sonnet-4-6', now(),
+    `Got it. Adapting implementation to add <code>tenacity</code> retry with exponential backoff:
+    <div class="code-block"><span class="kw">from</span> tenacity <span class="kw">import</span> retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+
+<span class="kw">@retry</span>(
+    wait=wait_exponential(multiplier=<span class="num">1</span>, min=<span class="num">2</span>, max=<span class="num">10</span>),
+    stop=stop_after_attempt(<span class="num">3</span>),
+    retry=retry_if_exception_type(requests.Timeout),
+)
+<span class="kw">def</span> <span class="fn">exchange_oauth_token</span>(code: str) -> dict:
+    resp = session.post(TOKEN_URL, data=payload, <span class="kw">timeout</span>=(<span class="num">10</span>, <span class="num">30</span>))
+    resp.raise_for_status()
+    <span class="kw">return</span> resp.json()</div>`);
+  addCost(0.01, 380);
+}
+
+function now() {
+  const d = new Date();
+  return d.getHours().toString().padStart(2,'0') + ':' +
+         d.getMinutes().toString().padStart(2,'0') + ':' +
+         d.getSeconds().toString().padStart(2,'0');
+}
+
+async function startDemo() {
+  // reset
+  replayBtn.classList.remove('show');
+  chat.innerHTML = '';
+  totalTokens = 0; totalCost = 0; interruptFired = false;
+  costDisplay.textContent = '$0.00';
+  metricTokens.textContent = '0';
+  metricElapsed.textContent = '0.0s';
+  metricRetries.textContent = '0 / 2';
+  metricSavings.textContent = '—';
+  setProgress(0);
+  statusText.textContent = 'INITIALIZING';
+  taskBadge.textContent = 'PENDING';
+  taskText.textContent = 'Waiting for task...';
+  document.getElementById('browser-overlay').style.display = 'flex';
+  document.getElementById('browser-content').style.display = 'none';
+  document.getElementById('browser-url').textContent = 'about:blank';
+  document.getElementById('scan-line').classList.remove('active');
+  document.getElementById('test-results').innerHTML =
+    '<div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);text-align:center;padding:20px 0">Verifier not yet active</div>';
+  ['router','researcher','architect','coder','reviewer','verifier'].forEach(a => setAgentState(a,'idle'));
+  document.querySelectorAll('.pipeline-connector').forEach(c => c.classList.remove('lit'));
+  document.querySelectorAll('.config-badge.active').forEach(b => {
+    b.className = 'config-badge optimal'; b.textContent = 'OPTIMAL';
+  });
+
+  startTime = Date.now();
+  elapsedInterval = setInterval(() => {
+    metricElapsed.textContent = ((Date.now() - startTime)/1000).toFixed(1) + 's';
+  }, 100);
+
+  // ── 0:00 USER TASK ──
+  await delay(600);
+  addMessage('user', '👤', 'You', '', now(),
+    'Fix the login timeout issue — users report OAuth flow times out on slow connections');
+  taskText.textContent = 'Fix login timeout — OAuth flow times out on slow connections';
+  setProgress(4);
+
+  // ── ROUTER ──
+  await delay(900);
+  statusText.textContent = 'ROUTING';
+  setAgentState('router', 'running');
+  document.getElementById('cfg-router').querySelector('.config-badge').className = 'config-badge active';
+  document.getElementById('cfg-router').querySelector('.config-badge').textContent = 'ACTIVE';
+  document.getElementById('cfg-router').classList.add('active');
+
+  const rt = addTyping('router', '⚡', 'Router');
+  await delay(700);
+  rt.remove();
+  taskBadge.textContent = 'BUG FIX';
+  addMessage('router', '⚡', 'Router', 'claude-haiku-4-5', now(),
+    `Task classified: <code>bug_fix</code><br>
+    Pipeline: <strong>Researcher → Coder → Reviewer → Verifier</strong><br>
+    Architect skipped — no new design required`);
+  addCost(0.002, 210);
+  setProgress(10);
+  await delay(400);
+  setAgentState('router', 'done');
+  document.getElementById('cfg-router').querySelector('.config-badge').className = 'config-badge optimal';
+  document.getElementById('cfg-router').querySelector('.config-badge').textContent = 'OPTIMAL';
+  document.getElementById('cfg-router').classList.remove('active');
+  litConnector(1);
+
+  // ── RESEARCHER ──
+  await delay(600);
+  statusText.textContent = 'RESEARCHING';
+  setAgentState('researcher', 'running');
+  document.getElementById('cfg-researcher').querySelector('.config-badge').className = 'config-badge active';
+  document.getElementById('cfg-researcher').querySelector('.config-badge').textContent = 'ACTIVE';
+  document.getElementById('cfg-researcher').classList.add('active');
+
+  const res1 = addTyping('researcher', '🔭', 'Researcher');
+  await delay(1200);
+  res1.remove();
+  addMessage('researcher', '🔭', 'Researcher', 'gemini-2.5-pro', now(),
+    `Searching codebase for <code>timeout</code>, <code>oauth</code>, <code>auth</code>...
+    <div class="finding">→ Found: <code>auth/oauth.py</code> line 47 — hardcoded <code>timeout=5</code> in POST to token endpoint</div>`);
+  addCost(0.008, 890);
+  setProgress(22);
+
+  // browser activates
+  await delay(800);
+  document.getElementById('browser-overlay').style.display = 'none';
+  document.getElementById('browser-content').style.display = 'block';
+  document.getElementById('browser-url').textContent = 'docs.python-requests.org/api/Session/timeout';
+  document.getElementById('scan-line').classList.add('active');
+
+  const res2 = addTyping('researcher', '🔭', 'Researcher');
+  await delay(1800);
+  res2.remove();
+  addMessage('researcher', '🔭', 'Researcher', 'gemini-2.5-pro', now(),
+    `Browser: reading Python requests docs on timeout best practices.
+    <div class="finding">→ OAuth flows need up to 30s on slow networks. Tuple timeout <code>(connect, read)</code> recommended. Minimum: <code>(10, 30)</code> for OAuth providers.</div>`);
+  addCost(0.012, 1240);
+  setProgress(35);
+  document.getElementById('scan-line').classList.remove('active');
+
+  await delay(400);
+  setAgentState('researcher', 'done');
+  document.getElementById('cfg-researcher').querySelector('.config-badge').className = 'config-badge optimal';
+  document.getElementById('cfg-researcher').querySelector('.config-badge').textContent = 'OPTIMAL';
+  document.getElementById('cfg-researcher').classList.remove('active');
+  litConnector(3);
+
+  // ── CODER ──
+  await delay(700);
+  statusText.textContent = 'CODING';
+  setAgentState('coder', 'running');
+  document.getElementById('cfg-coder').querySelector('.config-badge').className = 'config-badge active';
+  document.getElementById('cfg-coder').querySelector('.config-badge').textContent = 'ACTIVE';
+  document.getElementById('cfg-coder').classList.add('active');
+
+  const cod1 = addTyping('coder', '⌨️', 'Coder');
+  await delay(1600);
+  cod1.remove();
+  addMessage('coder', '⌨️', 'Coder', 'claude-sonnet-4-6', now(),
+    `Read Researcher findings. Fixing <code>auth/oauth.py:47</code>:
+    <div class="code-block"><span class="cm"># Before</span>
+resp = session.post(TOKEN_URL, data=payload, <span class="kw">timeout</span>=<span class="num">5</span>)
+
+<span class="cm"># After — tuple: (connect_timeout, read_timeout)</span>
+resp = session.post(TOKEN_URL, data=payload, <span class="kw">timeout</span>=(<span class="num">10</span>, <span class="num">30</span>))</div>`);
+  addCost(0.015, 1640);
+  setProgress(52);
+  await delay(400);
+  document.getElementById('interrupt-input').placeholder = 'Type to interrupt Coder now ↑';
+  await delay(2200);
+  document.getElementById('interrupt-input').placeholder = 'Interrupt agents — redirect, add requirements, ask questions...';
+
+  if (!interruptFired) {
+    // auto-fire demo interrupt
+    interruptFired = true;
+    document.getElementById('interrupt-input').value = 'Also add retry with exponential backoff — we see flaky networks in prod';
+    await delay(400);
+    fireInterrupt('Also add retry with exponential backoff — we see flaky networks in prod');
+    document.getElementById('interrupt-input').value = '';
+    await delay(5200);
+  } else {
+    await delay(2000);
+  }
+
+  setAgentState('coder', 'done');
+  document.getElementById('cfg-coder').querySelector('.config-badge').className = 'config-badge optimal';
+  document.getElementById('cfg-coder').querySelector('.config-badge').textContent = 'OPTIMAL';
+  document.getElementById('cfg-coder').classList.remove('active');
+  litConnector(4);
+  setProgress(64);
+
+  // ── REVIEWER ──
+  await delay(700);
+  statusText.textContent = 'REVIEWING';
+  setAgentState('reviewer', 'reviewing');
+  document.getElementById('cfg-reviewer').querySelector('.config-badge').className = 'config-badge active';
+  document.getElementById('cfg-reviewer').querySelector('.config-badge').textContent = 'ACTIVE';
+  document.getElementById('cfg-reviewer').classList.add('active');
+
+  const rev1 = addTyping('reviewer', '🔍', 'Reviewer');
+  await delay(2200);
+  rev1.remove();
+  addMessage('reviewer', '🔍', 'Reviewer', 'deepseek-r1', now(),
+    `Code review complete. 1 issue found (heterogeneous model review — different family than Coder):
+    <div class="issue">⚠ <code>stop_after_attempt</code> missing — retry decorator has no maximum attempt limit. Could loop indefinitely on persistent network failure.</div>`);
+  addCost(0.018, 1980);
+  setProgress(74);
+  await delay(1000);
+
+  // coder adapts
+  const cod2 = addTyping('coder', '⌨️', 'Coder');
+  await delay(1400);
+  cod2.remove();
+  addMessage('coder', '⌨️', 'Coder', 'claude-sonnet-4-6', now(),
+    `Reviewer's catch confirmed. Adding <code>stop_after_attempt(3)</code>:
+    <div class="code-block"><span class="kw">@retry</span>(
+    wait=wait_exponential(multiplier=<span class="num">1</span>, min=<span class="num">2</span>, max=<span class="num">10</span>),
+    <span class="kw">stop=stop_after_attempt(<span class="num">3</span>)</span>,  <span class="cm"># Reviewer: missing max attempts</span>
+    retry=retry_if_exception_type(requests.Timeout),
+)
+<span class="kw">def</span> <span class="fn">exchange_oauth_token</span>(code: str) -> dict:
+    resp = session.post(TOKEN_URL, data=payload, <span class="kw">timeout</span>=(<span class="num">10</span>, <span class="num">30</span>))
+    resp.raise_for_status()
+    <span class="kw">return</span> resp.json()</div>`);
+  addCost(0.009, 870);
+  setProgress(82);
+  await delay(400);
+  setAgentState('reviewer', 'done');
+  document.getElementById('cfg-reviewer').querySelector('.config-badge').className = 'config-badge optimal';
+  document.getElementById('cfg-reviewer').querySelector('.config-badge').textContent = 'OPTIMAL';
+  document.getElementById('cfg-reviewer').classList.remove('active');
+  litConnector(5);
+  metricRetries.textContent = '1 / 2';
+
+  // ── VERIFIER ──
+  await delay(700);
+  statusText.textContent = 'VERIFYING';
+  setAgentState('verifier', 'running');
+  document.getElementById('cfg-verifier').querySelector('.config-badge').className = 'config-badge active';
+  document.getElementById('cfg-verifier').querySelector('.config-badge').textContent = 'ACTIVE';
+  document.getElementById('cfg-verifier').classList.add('active');
+
+  // switch to verify tab to show tests
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('[data-tab="verify"]').classList.add('active');
+  document.getElementById('tab-verify').classList.add('active');
+
+  const testResults = document.getElementById('test-results');
+  testResults.innerHTML = '';
+
+  const vt = addTyping('verifier', '🧪', 'Verifier');
+  await delay(900);
+  vt.remove();
+  addMessage('verifier', '🧪', 'Verifier', 'haiku-4-5 + docker', now(),
+    `Spinning up <code>testforge-sandbox</code> container · running existing test suite`);
+
+  const tests = [
+    {name:'test_oauth_token_exchange', time:'0.12s', status:'pass'},
+    {name:'test_oauth_refresh_token',  time:'0.09s', status:'pass'},
+    {name:'test_oauth_invalid_code',   time:'0.08s', status:'pass'},
+    {name:'test_login_redirect',       time:'0.11s', status:'pass'},
+    {name:'test_session_persistence',  time:'0.14s', status:'pass'},
+  ];
+
+  for (let i = 0; i < tests.length; i++) {
+    await delay(280);
+    const t = tests[i];
+    const div = document.createElement('div');
+    div.className = `test-item ${t.status}`;
+    div.style.animationDelay = '0ms';
+    div.innerHTML = `<span class="test-icon">${t.status==='pass'?'✅':'❌'}</span>
+      <span class="test-name">${t.name}</span>
+      <span class="test-time">${t.time}</span>`;
+    testResults.appendChild(div);
+  }
+
+  await delay(600);
+  // new test for timeout scenario
+  addMessage('verifier', '🧪', 'Verifier', 'haiku-4-5 + docker', now(),
+    `Generating new test for timeout scenario:`);
+
+  const newTests = [
+    {name:'test_oauth_timeout_retry',       time:'0.31s', status:'pass'},
+    {name:'test_oauth_slow_network_success', time:'0.28s', status:'pass'},
+    {name:'test_oauth_max_retries_exceeded', time:'0.19s', status:'pass'},
+  ];
+
+  for (let i = 0; i < newTests.length; i++) {
+    await delay(320);
+    const t = newTests[i];
+    const div = document.createElement('div');
+    div.className = `test-item ${t.status}`;
+    div.innerHTML = `<span class="test-icon">${t.status==='pass'?'✅':'❌'}</span>
+      <span class="test-name">${t.name}</span>
+      <span class="test-time">${t.time}</span>`;
+    testResults.appendChild(div);
+  }
+
+  addCost(0.004, 420);
+  setProgress(95);
+  await delay(800);
+
+  setAgentState('verifier', 'done');
+  document.getElementById('cfg-verifier').querySelector('.config-badge').className = 'config-badge optimal';
+  document.getElementById('cfg-verifier').querySelector('.config-badge').textContent = 'OPTIMAL';
+  document.getElementById('cfg-verifier').classList.remove('active');
+  setProgress(100);
+  statusText.textContent = 'COMPLETE';
+
+  // FINAL MESSAGE
+  await delay(500);
+  addMessage('verifier', '🧪', 'Verifier', 'haiku-4-5 + docker', now(),
+    `<span class="pass">✅ PASS — 8 tests passing · 0 regressions · 3 new tests added</span>`);
+
+  await delay(700);
+  addMessage('system', '📋', 'Summary', 'forgelab', now(),
+    `<strong>Task complete.</strong> Files changed: <code>auth/oauth.py</code><br>
+    Models used: Haiku (routing) · Gemini (research) · Sonnet (coding) · DeepSeek (review) · Haiku+Docker (verify)<br>
+    Reviewer catch: 1 additional issue found via heterogeneous review<br>
+    Cost: <strong style="color:var(--amber)">$0.068</strong> · vs. Opus-only: ~<strong style="color:var(--text-dim)">$0.19</strong> · Savings: <strong style="color:var(--teal)">64%</strong>`);
+
+  metricSavings.textContent = '64%';
+  clearInterval(elapsedInterval);
+  replayBtn.classList.add('show');
+}
+
+// auto-start
+startDemo();
+</script>
+</body>
+</html>
