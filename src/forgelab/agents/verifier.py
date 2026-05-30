@@ -23,6 +23,7 @@ def run(state: WorkflowState) -> dict:
     exec_result = run_test(
         target_code=state.get("code_changes") or _TEST_STUB,
         test_code=test_code,
+        framework=state.get("test_framework", "pytest"),
     )
 
     test_results = {
