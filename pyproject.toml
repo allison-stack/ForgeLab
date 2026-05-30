@@ -15,7 +15,11 @@ dependencies = [
     "pyyaml>=6.0",
     "pydantic>=2.9.0",
     "httpx>=0.27.0",
+    "python-dotenv>=1.0.0",
 ]
+
+[project.scripts]
+forgelab = "forgelab.cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -30,6 +34,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/forgelab"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/forgelab/personas" = "forgelab/personas"
 
 [tool.ruff]
 target-version = "py312"
