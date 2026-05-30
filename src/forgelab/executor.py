@@ -1,113 +1,194 @@
 """
-Executor
-- the deterministic ground truth of the system
+Executor — the deterministic ground truth of the system.
 
-WHAT THIS IS
-- A function that takes target code + test code, runs the test inside
-  a Docker container, and returns pass/fail
+Runs generated test code against target code and returns a hard pass/fail.
+LLMs hallucinate test results; an actual test runner does not.
 
-WHY IT MATTERS
-- LLMs lie, they will tell you a test "passes" when it doesn't
-- `pytest` does not lie
-- introduces deterministic verification into the pipeline
+Docker path (preferred): isolated container, no host dependencies pollute results.
+Subprocess fallback: runs in a temp dir on the host when Docker is unavailable.
+  — Same pass/fail semantics, less isolation. Acceptable for local dev use.
+
+To add a new framework: add one row to _FRAMEWORK_CONFIG. Nothing else changes.
 """
 
 import shutil
 import subprocess
+import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self
 
 
 @dataclass(frozen=True)
 class ExecutorResult:
-    """
-    Structured result from a pytest run
-
-    Attributes:
-        passed: True iff pytest exit code == 0
-        stdout: Full pytest stdout (useful for the Judge to see why a test failed)
-        stderr: Full stderr (for syntax errors)
-        timed_out: True if we hit time limit
-    """
-
     passed: bool
     stdout: str
     stderr: str
     timed_out: bool
 
 
+@dataclass(frozen=True)
+class _FrameworkConfig:
+    image: str                         # Docker image
+    setup_cmd: list[str] | None        # Run once in container after start (None = not needed)
+    target_file: str                   # Filename for target/implementation code
+    test_file: str                     # Filename for test code
+    test_cmd: list[str]                # Test command inside Docker
+    subprocess_test_cmd: list[str]     # Test command for subprocess fallback
+    extra_files: dict[str, str] = field(default_factory=dict)  # Scaffold files (Cargo.toml etc.)
+
+
+_FRAMEWORK_CONFIG: dict[str, _FrameworkConfig] = {
+    "pytest": _FrameworkConfig(
+        image="python:3.12-slim",
+        setup_cmd=["pip", "install", "pytest", "-q"],
+        target_file="target.py",
+        test_file="test_target.py",
+        test_cmd=["pytest", "-q"],
+        # Use `python -m pytest` so the fallback picks up the active venv's pytest,
+        # not a different pytest that might be on PATH.
+        subprocess_test_cmd=[sys.executable, "-m", "pytest", "-q"],
+    ),
+    "cargo": _FrameworkConfig(
+        image="rust:1-slim",
+        setup_cmd=None,
+        target_file="src/lib.rs",
+        test_file="tests/integration_test.rs",
+        test_cmd=["cargo", "test"],
+        subprocess_test_cmd=["cargo", "test"],
+        extra_files={
+            "Cargo.toml": (
+                '[package]\nname = "sandbox"\nversion = "0.1.0"\nedition = "2021"\n\n'
+                '[lib]\nname = "sandbox"\npath = "src/lib.rs"\n'
+            ),
+        },
+    ),
+    "jest": _FrameworkConfig(
+        image="node:20-slim",
+        setup_cmd=["npm", "install", "--save-dev", "jest"],
+        target_file="target.js",
+        test_file="target.test.js",
+        test_cmd=["npx", "jest", "--no-coverage"],
+        subprocess_test_cmd=["npx", "jest", "--no-coverage"],
+        extra_files={
+            "package.json": '{"name":"sandbox","version":"1.0.0","scripts":{"test":"jest"}}\n',
+        },
+    ),
+    "go-test": _FrameworkConfig(
+        image="golang:1.22-alpine",
+        setup_cmd=None,
+        target_file="pkg.go",
+        test_file="pkg_test.go",
+        test_cmd=["go", "test", "./..."],
+        subprocess_test_cmd=["go", "test", "./..."],
+        extra_files={
+            "go.mod": "module sandbox\n\ngo 1.22\n",
+        },
+    ),
+    # ctest needs a full CMake configure+build before tests run — non-trivial to sandbox.
+    # Falls back to pytest until a proper CMake scaffold is added.
+    "ctest": _FrameworkConfig(
+        image="python:3.12-slim",
+        setup_cmd=["pip", "install", "pytest", "-q"],
+        target_file="target.py",
+        test_file="test_target.py",
+        test_cmd=["pytest", "-q"],
+        subprocess_test_cmd=[sys.executable, "-m", "pytest", "-q"],
+    ),
+}
+
+_DEFAULT_FRAMEWORK = "pytest"
+
+
+def _docker_available() -> bool:
+    """Return True if the Docker daemon is reachable."""
+    try:
+        result = subprocess.run(
+            ["docker", "info"],
+            capture_output=True,
+            timeout=5,
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
 class ExecutorSession:
     """
-    Long-lived Docker container for executing many test runs inside one cycle.
+    Long-lived execution context for a single workflow cycle.
 
-    Each cycle's executor calls (test on original + test on every mutation) are
-    routed through one container started here. We rewrite target.py on the host
-    side and `docker exec pytest` instead of `docker run --rm` per call —
-    eliminating ~0.5-1s of container startup per mutation, which is the
-    dominant fraction of wall-clock on mutation-heavy iterations.
+    If Docker is available: starts a container, installs the test framework
+    once, and re-uses it across multiple run() calls (amortises startup cost).
+
+    If Docker is unavailable: runs tests directly via subprocess in a temp
+    directory on the host. Same pass/fail semantics, less isolation.
     """
 
-    def __init__(
-        self,
-        image: str = "testforge-sandbox",
-        timeout_seconds: int = 60,
-    ) -> None:
-        self.image = image
+    def __init__(self, framework: str = _DEFAULT_FRAMEWORK, timeout_seconds: int = 60) -> None:
+        self._cfg = _FRAMEWORK_CONFIG.get(framework, _FRAMEWORK_CONFIG[_DEFAULT_FRAMEWORK])
         self.timeout_seconds = timeout_seconds
+        self._use_docker = _docker_available()
         self._tmpdir: str | None = None
         self._container_id: str | None = None
 
     def __enter__(self) -> Self:
         self._tmpdir = tempfile.mkdtemp()
-        # start a sleep container so we can docker-exec pytest into it repeatedly
-        result = subprocess.run(
-            [
-                "docker",
-                "run",
-                "-d",
-                "--rm",
-                "-v",
-                f"{self._tmpdir}:/work",
-                "-w",
-                "/work",
-                self.image,
-                "sleep",
-                "3600",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        self._container_id = result.stdout.strip()
+
+        # Write scaffold files (Cargo.toml, go.mod, package.json, etc.)
+        for filename, content in self._cfg.extra_files.items():
+            dest = Path(self._tmpdir, filename)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(content, encoding="utf-8")
+
+        if self._use_docker:
+            result = subprocess.run(
+                ["docker", "run", "-d", "--rm",
+                 "-v", f"{self._tmpdir}:/work", "-w", "/work",
+                 self._cfg.image, "sleep", "3600"],
+                capture_output=True, text=True, check=True,
+            )
+            self._container_id = result.stdout.strip()
+            if self._cfg.setup_cmd:
+                subprocess.run(
+                    ["docker", "exec", self._container_id] + self._cfg.setup_cmd,
+                    capture_output=True, check=True,
+                )
+
         return self
 
     def __exit__(self, *_exc: object) -> None:
         if self._container_id:
-            subprocess.run(
-                ["docker", "rm", "-f", self._container_id],
-                capture_output=True,
-            )
+            subprocess.run(["docker", "rm", "-f", self._container_id], capture_output=True)
             self._container_id = None
         if self._tmpdir:
             shutil.rmtree(self._tmpdir, ignore_errors=True)
             self._tmpdir = None
 
     def run(self, target_code: str, test_code: str) -> ExecutorResult:
-        """Run `test_code` against `target_code` in the persistent container."""
-        if self._container_id is None or self._tmpdir is None:
+        """Write target + test files and execute the test runner."""
+        if self._tmpdir is None:
             raise RuntimeError("ExecutorSession.run() called outside a 'with' block")
-        # overwriting target.py invalidates Python's .pyc cache via mtime; pytest
-        # itself is a fresh process per docker-exec so sys.modules is clean.
-        Path(self._tmpdir, "target.py").write_text(target_code, encoding="utf-8")
-        Path(self._tmpdir, "test_target.py").write_text(test_code, encoding="utf-8")
+
+        target_path = Path(self._tmpdir, self._cfg.target_file)
+        test_path = Path(self._tmpdir, self._cfg.test_file)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        test_path.parent.mkdir(parents=True, exist_ok=True)
+        target_path.write_text(target_code, encoding="utf-8")
+        test_path.write_text(test_code, encoding="utf-8")
+
+        if self._use_docker:
+            cmd = ["docker", "exec", self._container_id] + self._cfg.test_cmd
+            kwargs: dict = {}
+        else:
+            cmd = self._cfg.subprocess_test_cmd
+            # Run directly in the tmpdir so relative imports and file paths resolve
+            kwargs = {"cwd": self._tmpdir}
+
         try:
             result = subprocess.run(
-                ["docker", "exec", self._container_id, "pytest", "-q"],
-                capture_output=True,
-                text=True,
-                timeout=self.timeout_seconds,
+                cmd, capture_output=True, text=True,
+                timeout=self.timeout_seconds, **kwargs,
             )
             return ExecutorResult(
                 passed=result.returncode == 0,
@@ -125,22 +206,15 @@ class ExecutorSession:
 
 
 def run_test(
-    target_code: str, test_code: str, *, image: str = "testforge-sandbox", timeout_seconds: int = 60
+    target_code: str,
+    test_code: str,
+    *,
+    framework: str = _DEFAULT_FRAMEWORK,
+    timeout_seconds: int = 60,
 ) -> ExecutorResult:
     """
-    Run tests against some target code in docker sandbox (one-shot convenience).
-
-    For batch usage inside a single cycle, prefer ExecutorSession directly to
-    amortize container startup across many mutations.
-
-    Args:
-        target_code: Full source of the target function
-        test_code: Test generated by Author
-        image: Docker image (default 'testforge-sandbox')
-        timeout_seconds: timeout limit (default 60 seconds)
-
-    Returns:
-        ExecutorResult with pass/fail + stdout/stderr
+    One-shot convenience wrapper. For multiple runs in one cycle, use
+    ExecutorSession directly to amortise container startup.
     """
-    with ExecutorSession(image=image, timeout_seconds=timeout_seconds) as session:
+    with ExecutorSession(framework=framework, timeout_seconds=timeout_seconds) as session:
         return session.run(target_code, test_code)
