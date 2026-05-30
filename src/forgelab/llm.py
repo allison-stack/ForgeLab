@@ -1,43 +1,48 @@
 """
-Model router
-- The one place all LLM calls go through
+Unified LLM gateway — Ollama-first, OpenRouter fallback.
 
-WHY IT MATTERS
-- Every agent (Author, Judge, Supervisor) calls `call_llm`
+Every agent call goes through call_llm(). The base model is read from
+OLLAMA_MODEL env var. When the user accepts an Evaluator upgrade, the
+caller passes model= explicitly (OpenRouter model ID).
 """
-
 import os
-
-from dotenv import load_dotenv
 from openai import OpenAI
 
-# loads environment variables like OpenRouter API key
-load_dotenv()
 
-_client = OpenAI(
-    base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
-    api_key=os.environ["OPENROUTER_API_KEY"],
-)
+def get_client(use_openrouter: bool = False) -> OpenAI:
+    if use_openrouter:
+        return OpenAI(
+            base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+            api_key=os.environ["OPENROUTER_API_KEY"],
+        )
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    return OpenAI(base_url=f"{base_url}/v1", api_key="ollama")
+
+
+# module-level alias used by tests
+_get_client = get_client
 
 
 def call_llm(
-    model: str, system: str, user: str, *, temperature: float = 0.2, max_tokens: int = 2000
+    system: str,
+    user: str,
+    model: str | None = None,
+    *,
+    temperature: float = 0.2,
+    max_tokens: int = 2000,
 ) -> tuple[str, int]:
     """
-    A single LLM call
-
-    Args:
-        model: OpenRouter model id
-        system: System prompt
-        user: User message
-        temperature: 0.0 to 1.0
-        max_tokens: Limit output length
-
-    Returns:
-        (output_text, total_tokens)
+    Single LLM call. Uses Ollama by default; routes to OpenRouter when
+    model= is an OpenRouter model ID (contains '/').
+    Returns (output_text, total_tokens).
     """
-    # generated response given system and user prompt to the llm
-    response = _client.chat.completions.create(
+    use_openrouter = model is not None and "/" in model
+    client = _get_client(use_openrouter=use_openrouter)
+
+    if model is None:
+        model = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
+
+    response = client.chat.completions.create(
         model=model,
         messages=[
             {"role": "system", "content": system},
@@ -47,6 +52,5 @@ def call_llm(
         max_tokens=max_tokens,
     )
     text = response.choices[0].message.content or ""
-    # track token usage
     tokens = response.usage.total_tokens if response.usage else 0
     return text, tokens
