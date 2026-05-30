@@ -1,0 +1,54 @@
+/* Design tokens — identical to docs/demo.html */
+:root {
+  --bg:        #080A0F;
+  --surface:   #0F1118;
+  --elevated:  #171B25;
+  --border:    #232735;
+  --border-hi: #2E3447;
+  --amber:     #F5A623;
+  --amber-dim: #C47D0E;
+  --amber-glow:#F5A62322;
+  --teal:      #00C9A7;
+  --teal-dim:  #00876F;
+  --red:       #FF5C5C;
+  --green:     #3DDB85;
+  --purple:    #9B7FFF;
+  --text:      #C8CEDF;
+  --text-dim:  #5E6680;
+  --text-hi:   #EEF1FA;
+  --mono:      'IBM Plex Mono', monospace;
+  --sans:      'IBM Plex Sans', sans-serif;
+  --display:   'Syne', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  display: contents;
+}
+
+/* Scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Animations */
+@keyframes blink    { 0%,100%{opacity:1} 50%{opacity:0.3} }
+@keyframes fadeUp   { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes spin-glow{ 0%{box-shadow:0 0 6px var(--amber)} 50%{box-shadow:0 0 14px var(--amber)} 100%{box-shadow:0 0 6px var(--amber)} }
+@keyframes scan     { from{top:0} to{top:100%} }
+@keyframes pulse-icon { 0%,100%{box-shadow:0 0 0 0 var(--amber-glow)} 50%{box-shadow:0 0 20px 4px var(--amber-glow)} }
+@keyframes bounce   { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
+@keyframes slideIn  { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
