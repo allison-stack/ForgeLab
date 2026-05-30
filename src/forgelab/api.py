@@ -88,57 +88,60 @@ async def websocket_endpoint(websocket: WebSocket):
 
         ts = lambda: datetime.now().strftime("%H:%M:%S")  # noqa: E731
 
-        async for event in _graph.astream(initial_state, stream_mode="updates"):
-            for node_name, update in event.items():
-                await send({"type": "agent_status", "agent": node_name, "status": "running"})
+        try:
+            async for event in _graph.astream(initial_state, stream_mode="updates"):
+                for node_name, update in event.items():
+                    await send({"type": "agent_status", "agent": node_name, "status": "running"})
 
-                cost_entry = update.get("session_cost", {}).get(node_name, {})
-                if cost_entry:
-                    await send({
-                        "type": "cost_update",
-                        "agent": node_name,
-                        "tokens": cost_entry.get("tokens", 0),
-                        "cost_usd": cost_entry.get("cost_usd", 0.0),
-                    })
-
-                if node_name == "evaluator" and update.get("upgrade_recommendation"):
-                    rec = update["upgrade_recommendation"]
-                    await send({"type": "upgrade_prompt", **rec})
-                    try:
-                        resp = json.loads(
-                            await asyncio.wait_for(websocket.receive_text(), timeout=30)
-                        )
-                        if resp.get("type") == "upgrade_response" and resp.get("accepted"):
-                            model_in_use = rec["recommended_model"]
-                    except asyncio.TimeoutError:
-                        pass
-
-                content = _format_content(node_name, update)
-                if content:
-                    status = "reviewing" if node_name == "reviewer" else "done"
-                    await send({
-                        "type": "chat_message",
-                        "agent": node_name,
-                        "model": _AGENT_MODELS.get(node_name, model_in_use),
-                        "content": content,
-                        "ts": ts(),
-                    })
-                    await send({"type": "agent_status", "agent": node_name, "status": status})
-
-                if node_name == "researcher" and update.get("findings"):
-                    await send({"type": "browser_update", "url": "codebase + web", "scanning": False})
-
-                if node_name == "verifier" and update.get("test_results"):
-                    tr = update["test_results"]
-                    for i in range(tr.get("tests_run", 0)):
+                    cost_entry = update.get("session_cost", {}).get(node_name, {})
+                    if cost_entry:
                         await send({
-                            "type": "test_result",
-                            "name": f"test_{i+1}",
-                            "passed": tr["passed"],
-                            "duration_ms": 150,
+                            "type": "cost_update",
+                            "agent": node_name,
+                            "tokens": cost_entry.get("tokens", 0),
+                            "cost_usd": cost_entry.get("cost_usd", 0.0),
                         })
 
-        await send({"type": "workflow_complete", "summary": {}})
+                    if node_name == "evaluator" and update.get("upgrade_recommendation"):
+                        rec = update["upgrade_recommendation"]
+                        await send({"type": "upgrade_prompt", **rec})
+                        try:
+                            resp = json.loads(
+                                await asyncio.wait_for(websocket.receive_text(), timeout=30)
+                            )
+                            if resp.get("type") == "upgrade_response" and resp.get("accepted"):
+                                model_in_use = rec["recommended_model"]
+                        except asyncio.TimeoutError:
+                            pass
+
+                    content = _format_content(node_name, update)
+                    if content:
+                        status = "reviewing" if node_name == "reviewer" else "done"
+                        await send({
+                            "type": "chat_message",
+                            "agent": node_name,
+                            "model": _AGENT_MODELS.get(node_name, model_in_use),
+                            "content": content,
+                            "ts": ts(),
+                        })
+                        await send({"type": "agent_status", "agent": node_name, "status": status})
+
+                    if node_name == "researcher" and update.get("findings"):
+                        await send({"type": "browser_update", "url": "codebase + web", "scanning": False})
+
+                    if node_name == "verifier" and update.get("test_results"):
+                        tr = update["test_results"]
+                        for i in range(tr.get("tests_run", 0)):
+                            await send({
+                                "type": "test_result",
+                                "name": f"test_{i+1}",
+                                "passed": tr["passed"],
+                                "duration_ms": 150,
+                            })
+
+            await send({"type": "workflow_complete", "summary": {}})
+        except Exception as exc:
+            await send({"type": "error", "message": str(exc)})
 
     except WebSocketDisconnect:
         pass
