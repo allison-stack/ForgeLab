@@ -1,0 +1,46 @@
+# benchmark_registry.yaml
+# Sources: SWE-bench Verified 2026, HumanEval, MMLU-Pro, Chatbot Arena
+# Evaluator reads this at runtime to form upgrade recommendations.
+
+task_types:
+  bug_fix:
+    recommended: "anthropic/claude-sonnet-4-6"
+    reason: "SWE-bench Verified 79.6% — strongest at targeted code fixes"
+    benchmark: {swe_bench_verified: "79.6%", cost_per_1m: "$15"}
+    threshold: complex
+
+  new_feature:
+    recommended: "anthropic/claude-opus-4-8"
+    reason: "SWE-bench Verified 87.6% — genuine reasoning for design decisions"
+    benchmark: {swe_bench_verified: "87.6%", cost_per_1m: "$75"}
+    threshold: complex
+
+  architecture:
+    recommended: "anthropic/claude-opus-4-8"
+    reason: "Highest reasoning benchmark — architecture decisions compound"
+    benchmark: {swe_bench_verified: "87.6%", cost_per_1m: "$75"}
+    threshold: moderate
+
+  research_synthesis:
+    recommended: "google/gemini-2.5-pro"
+    reason: "MMLU-Pro 87.2% — strongest multi-document synthesis"
+    benchmark: {mmlu_pro: "87.2%", cost_per_1m: "$10"}
+    threshold: complex
+
+  code_review:
+    recommended: "deepseek/deepseek-r1"
+    reason: "Strong chain-of-thought reasoning catches subtle logic errors"
+    benchmark: {reasoning: "strong", cost_per_1m: "$8"}
+    threshold: complex
+
+  explain:
+    recommended: "anthropic/claude-sonnet-4-6"
+    reason: "Chatbot Arena top-ranked for explanation quality"
+    benchmark: {chatbot_arena: "top-5", cost_per_1m: "$15"}
+    threshold: critical
+
+complexity_levels:
+  - simple
+  - moderate
+  - complex
+  - critical

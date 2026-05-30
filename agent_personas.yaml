@@ -1,0 +1,43 @@
+# agent_personas.yaml
+# Replaces model_defaults.yaml.
+# base_model is the single Ollama model all agents share.
+# Each agent's AGENTS.md defines its system prompt and per-role parameters.
+
+base_model: "qwen2.5-coder:7b"   # swap to any Ollama model here
+upgrade_threshold: complex        # complexity level that triggers Evaluator recommendation
+
+agents:
+  evaluator:
+    agents_md: "src/forgelab/personas/evaluator/AGENTS.md"
+    temperature: 0.0
+    description: "Complexity gatekeeper + benchmark-driven upgrade recommender"
+
+  router:
+    agents_md: "src/forgelab/personas/router/AGENTS.md"
+    temperature: 0.0
+    description: "Task classifier and pipeline selector"
+
+  researcher:
+    agents_md: "src/forgelab/personas/researcher/AGENTS.md"
+    temperature: 0.3
+    description: "Codebase search + Playwright web browsing"
+
+  architect:
+    agents_md: "src/forgelab/personas/architect/AGENTS.md"
+    temperature: 0.4
+    description: "Implementation planning and interface design"
+
+  coder:
+    agents_md: "src/forgelab/personas/coder/AGENTS.md"
+    temperature: 0.1
+    description: "Code generation and diff production"
+
+  reviewer:
+    agents_md: "src/forgelab/personas/reviewer/AGENTS.md"
+    temperature: 0.5
+    description: "Adversarial code review — assumes bugs exist"
+
+  verifier:
+    agents_md: "src/forgelab/personas/verifier/AGENTS.md"
+    temperature: 0.1
+    description: "Test generation + Docker sandbox execution"
