@@ -22,10 +22,15 @@ def run(state: WorkflowState) -> dict:
 
     try:
         parsed = json.loads(raw)
-        task_type = parsed.get("task_type", "bug_fix")
+        if isinstance(parsed, dict):
+            task_type = parsed.get("task_type", "bug_fix")
+        elif isinstance(parsed, list) and parsed:
+            task_type = parsed[0] if isinstance(parsed[0], str) else "bug_fix"
+        else:
+            task_type = "bug_fix"
         if task_type not in _VALID_TYPES:
             task_type = "bug_fix"
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, IndexError):
         task_type = "bug_fix"
 
     update: dict = {"task_type": task_type}

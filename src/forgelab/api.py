@@ -8,6 +8,9 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -91,6 +94,8 @@ async def websocket_endpoint(websocket: WebSocket):
         try:
             async for event in _graph.astream(initial_state, stream_mode="updates"):
                 for node_name, update in event.items():
+                    if not isinstance(update, dict):
+                        continue
                     await send({"type": "agent_status", "agent": node_name, "status": "running"})
 
                     cost_entry = update.get("session_cost", {}).get(node_name, {})
