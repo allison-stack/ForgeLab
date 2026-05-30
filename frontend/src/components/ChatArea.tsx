@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { WorkflowUIState, AgentName } from '../types'
+import type { WorkflowUIState } from '../types'
 
 const AGENT_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   evaluator:  { bg: 'var(--amber-glow)',  border: 'var(--amber-dim)',    text: 'var(--amber)' },

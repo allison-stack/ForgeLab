@@ -39,7 +39,7 @@ export function useWorkflow(wsUrl = 'ws://localhost:8000/ws') {
   const submitTask = useCallback((task: string) => {
     if (wsRef.current) wsRef.current.close()
 
-    setState(s => ({ ...makeInitialState(), status: 'running', taskText: task }))
+    setState(() => ({ ...makeInitialState(), status: 'running', taskText: task }))
     startRef.current = Date.now()
     timerRef.current = setInterval(() => {
       setState(s => ({ ...s, elapsedMs: Date.now() - startRef.current }))
