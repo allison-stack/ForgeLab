@@ -152,6 +152,22 @@ async def websocket_endpoint(websocket: WebSocket):
         pass
 
 
+def _fmt_verifier(tr: dict) -> str:
+    verdict = "✅ PASS" if tr.get("passed") else "❌ FAIL"
+    stdout = (tr.get("stdout") or "").strip()
+    stderr = (tr.get("stderr") or "").strip()
+    tests_run = tr.get("tests_run", 0)
+    timed_out = tr.get("timed_out", False)
+    lines = [f"{verdict}  ({tests_run} test{'s' if tests_run != 1 else ''} run)"]
+    if timed_out:
+        lines.append("⏱ Timed out")
+    if stdout:
+        lines.append(f"\n```\n{stdout[:800]}\n```")
+    if stderr and not tr.get("passed"):
+        lines.append(f"\n```\n{stderr[:400]}\n```")
+    return "\n".join(lines)
+
+
 def _format_content(node: str, update: dict) -> str:
     mapping = {
         "evaluator": lambda u: f"Complexity: **{u.get('complexity')}**",
@@ -160,9 +176,7 @@ def _format_content(node: str, update: dict) -> str:
         "architect": lambda u: u.get("plan", ""),
         "coder": lambda u: u.get("code_changes", ""),
         "reviewer": lambda u: u.get("review_feedback", ""),
-        "verifier": lambda u: (
-            "✅ PASS" if u.get("test_results", {}).get("passed") else "❌ FAIL"
-        ),
+        "verifier": lambda u: _fmt_verifier(u.get("test_results", {})),
     }
     fn = mapping.get(node)
     return fn(update) if fn else ""

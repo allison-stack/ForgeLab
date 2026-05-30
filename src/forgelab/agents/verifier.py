@@ -1,7 +1,18 @@
 """Verifier — test generation + Docker sandbox execution."""
+import re
+
 from forgelab.agents.base import BaseAgent
 from forgelab.executor import run_test
 from forgelab.state import WorkflowState
+
+
+def _extract_python(text: str) -> str:
+    """Pull the last Python code block from a markdown diff, or return text as-is."""
+    blocks = re.findall(r"```(?:python)?\n(.*?)```", text, re.DOTALL)
+    if blocks:
+        # Take the last block — likely the "new code" in a before/after diff
+        return blocks[-1].strip()
+    return text
 
 
 class _VerifierAgent(BaseAgent):
@@ -20,8 +31,11 @@ def run(state: WorkflowState) -> dict:
     )
     test_code, tokens = _agent.call(user_msg)
 
+    raw_changes = state.get("code_changes") or _TEST_STUB
+    target_code = _extract_python(raw_changes) or raw_changes
+
     exec_result = run_test(
-        target_code=state.get("code_changes") or _TEST_STUB,
+        target_code=target_code,
         test_code=test_code,
         framework=state.get("test_framework", "pytest"),
     )
