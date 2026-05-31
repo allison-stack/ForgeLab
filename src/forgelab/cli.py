@@ -32,6 +32,8 @@ def main() -> None:
         subprocess.run(cmd, check=True)
 
     elif args.command == "demo":
+        if not os.path.exists(args.fixture):
+            sys.exit(f"Fixture not found: {args.fixture}")
         env = {
             **os.environ,
             "FORGELAB_DEMO_FIXTURE": args.fixture,
