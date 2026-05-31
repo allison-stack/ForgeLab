@@ -3,11 +3,13 @@ import asyncio
 import json
 import os
 
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 
 def create_app(fixture_path: str, speed: float = 1.0) -> FastAPI:
+    if speed <= 0:
+        raise ValueError(f"speed must be > 0, got {speed}")
     with open(fixture_path) as f:
         fixture = json.load(f)
 
@@ -26,10 +28,13 @@ def create_app(fixture_path: str, speed: float = 1.0) -> FastAPI:
     @app.websocket("/ws")
     async def demo_ws(websocket: WebSocket):
         await websocket.accept()
-        await websocket.receive_text()
-        for entry in fixture:
-            await asyncio.sleep(entry["delay_ms"] / 1000 * speed)
-            await websocket.send_text(json.dumps(entry["message"]))
+        try:
+            await websocket.receive_text()
+            for entry in fixture:
+                await asyncio.sleep(entry["delay_ms"] / 1000 * speed)
+                await websocket.send_text(json.dumps(entry["message"]))
+        except WebSocketDisconnect:
+            pass
 
     return app
 
