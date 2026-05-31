@@ -1,0 +1,51 @@
+[
+  {"delay_ms": 500,  "message": {"type": "agent_status", "agent": "evaluator", "status": "running"}},
+  {"delay_ms": 1200, "message": {"type": "cost_update",  "agent": "evaluator", "tokens": 312, "cost_usd": 0.0}},
+  {"delay_ms": 200,  "message": {"type": "chat_message", "agent": "evaluator", "model": "qwen2.5-coder:7b", "content": "Complexity: **moderate**\nSingle-file datetime arithmetic bug. No architectural changes needed.", "ts": "09:14:02"}},
+  {"delay_ms": 100,  "message": {"type": "agent_status", "agent": "evaluator", "status": "done"}},
+
+  {"delay_ms": 400,  "message": {"type": "agent_status", "agent": "router", "status": "running"}},
+  {"delay_ms": 800,  "message": {"type": "cost_update",  "agent": "router", "tokens": 89, "cost_usd": 0.0}},
+  {"delay_ms": 200,  "message": {"type": "chat_message", "agent": "router", "model": "qwen2.5-coder:7b", "content": "Task type: `bug_fix`\nPipeline: researcher → coder → reviewer → verifier", "ts": "09:14:03"}},
+  {"delay_ms": 100,  "message": {"type": "agent_status", "agent": "router", "status": "done"}},
+
+  {"delay_ms": 400,  "message": {"type": "agent_status", "agent": "researcher", "status": "running"}},
+  {"delay_ms": 300,  "message": {"type": "browser_update", "url": "codebase", "scanning": true}},
+  {"delay_ms": 1800, "message": {"type": "cost_update",  "agent": "researcher", "tokens": 1204, "cost_usd": 0.0}},
+  {"delay_ms": 200,  "message": {"type": "chat_message", "agent": "researcher", "model": "qwen2.5-coder:7b", "content": "Found 3 relevant locations:\n\n`arrow/arrow.py:484` — `humanize()` calls `datetime.utcnow()` to get the comparison baseline\n`arrow/arrow.py:102` — naive `datetime` stored when no tzinfo supplied at parse time\n`tests/test_arrow.py:1847` — existing `test_humanize` suite (no timezone-offset case)\n\nRoot cause: when local timezone is UTC+N, `self._datetime` is naive-local but compared against UTC baseline — a past date appears N hours in the future.", "ts": "09:14:05"}},
+  {"delay_ms": 100,  "message": {"type": "browser_update", "url": "codebase", "scanning": false}},
+  {"delay_ms": 100,  "message": {"type": "agent_status", "agent": "researcher", "status": "done"}},
+
+  {"delay_ms": 400,  "message": {"type": "agent_status", "agent": "coder", "status": "running"}},
+  {"delay_ms": 1600, "message": {"type": "cost_update",  "agent": "coder", "tokens": 876, "cost_usd": 0.0}},
+  {"delay_ms": 200,  "message": {"type": "chat_message", "agent": "coder", "model": "qwen2.5-coder:7b", "content": "```diff\n--- arrow/arrow.py\n+++ arrow/arrow.py\n-  delta = abs((self._datetime - datetime.utcnow()).total_seconds())\n+  now = datetime.now(timezone.utc).replace(tzinfo=None)\n+  delta = abs((self._datetime - now).total_seconds())\n```", "ts": "09:14:09"}},
+  {"delay_ms": 100,  "message": {"type": "agent_status", "agent": "coder", "status": "done"}},
+
+  {"delay_ms": 400,  "message": {"type": "agent_status", "agent": "reviewer", "status": "reviewing"}},
+  {"delay_ms": 1400, "message": {"type": "cost_update",  "agent": "reviewer", "tokens": 634, "cost_usd": 0.0}},
+  {"delay_ms": 200,  "message": {"type": "chat_message", "agent": "reviewer", "model": "qwen2.5-coder:7b", "content": "**CHANGES REQUESTED**\n\nThe fix uses `.replace(tzinfo=None)` which strips timezone info — this breaks when the caller passes a timezone-aware Arrow object. Handle both branches: if `self._datetime.tzinfo` is set, compare in UTC directly; otherwise use the naive-UTC baseline.", "ts": "09:14:12"}},
+  {"delay_ms": 100,  "message": {"type": "agent_status", "agent": "reviewer", "status": "done"}},
+
+  {"delay_ms": 400,  "message": {"type": "agent_status", "agent": "coder", "status": "running"}},
+  {"delay_ms": 1500, "message": {"type": "cost_update",  "agent": "coder", "tokens": 912, "cost_usd": 0.0}},
+  {"delay_ms": 200,  "message": {"type": "chat_message", "agent": "coder", "model": "qwen2.5-coder:7b", "content": "```diff\n--- arrow/arrow.py\n+++ arrow/arrow.py\n-  delta = abs((self._datetime - datetime.utcnow()).total_seconds())\n+  now_utc = datetime.now(timezone.utc)\n+  if self._datetime.tzinfo is not None:\n+      delta = abs((self._datetime - now_utc).total_seconds())\n+  else:\n+      delta = abs((self._datetime - now_utc.replace(tzinfo=None)).total_seconds())\n```", "ts": "09:14:16"}},
+  {"delay_ms": 100,  "message": {"type": "agent_status", "agent": "coder", "status": "done"}},
+
+  {"delay_ms": 400,  "message": {"type": "agent_status", "agent": "reviewer", "status": "reviewing"}},
+  {"delay_ms": 1200, "message": {"type": "cost_update",  "agent": "reviewer", "tokens": 298, "cost_usd": 0.0}},
+  {"delay_ms": 200,  "message": {"type": "chat_message", "agent": "reviewer", "model": "qwen2.5-coder:7b", "content": "**Verdict: APPROVED ✅**\n\nBoth tz-aware and tz-naive paths now compute delta correctly against the same UTC instant.", "ts": "09:14:19"}},
+  {"delay_ms": 100,  "message": {"type": "agent_status", "agent": "reviewer", "status": "done"}},
+
+  {"delay_ms": 400,  "message": {"type": "agent_status", "agent": "verifier", "status": "running"}},
+  {"delay_ms": 800,  "message": {"type": "test_result", "name": "test_humanize_past_tz_ahead", "passed": true, "duration_ms": 42}},
+  {"delay_ms": 300,  "message": {"type": "test_result", "name": "test_humanize_future", "passed": true, "duration_ms": 38}},
+  {"delay_ms": 300,  "message": {"type": "test_result", "name": "test_humanize_naive_utc", "passed": true, "duration_ms": 35}},
+  {"delay_ms": 300,  "message": {"type": "test_result", "name": "test_humanize_tz_aware", "passed": true, "duration_ms": 41}},
+  {"delay_ms": 300,  "message": {"type": "test_result", "name": "test_humanize_seconds", "passed": true, "duration_ms": 29}},
+  {"delay_ms": 300,  "message": {"type": "test_result", "name": "test_arrow_range_month", "passed": true, "duration_ms": 31}},
+  {"delay_ms": 1000, "message": {"type": "cost_update",  "agent": "verifier", "tokens": 445, "cost_usd": 0.0}},
+  {"delay_ms": 200,  "message": {"type": "chat_message", "agent": "verifier", "model": "qwen2.5-coder:7b + docker", "content": "✅ PASS  (47 tests run)\n\n```\n===== test session starts =====\ncollected 47 items\n\ntests/test_arrow.py ...........................................     [ 89%]\ntests/test_arrow.py::test_humanize_past_tz_ahead ......     [100%]\n\n====== 47 passed in 3.21s ======\n```", "ts": "09:14:24"}},
+  {"delay_ms": 100,  "message": {"type": "agent_status", "agent": "verifier", "status": "done"}},
+
+  {"delay_ms": 500,  "message": {"type": "workflow_complete", "summary": {}}}
+]
