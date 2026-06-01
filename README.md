@@ -2,10 +2,7 @@
 
 **A local-first multi-agent software engineering team**
 
-![ForgeLab demo](demo.gif)
-
-<!-- TODO: replace with a screenshot or demo GIF -->
-<!-- Reference: docs/demo.html has an interactive prototype -->
+![ForgeLab demo](demo/forgelab-demo.gif)
 
 ---
 
