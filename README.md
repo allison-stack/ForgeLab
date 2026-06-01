@@ -2,6 +2,8 @@
 
 **A local-first multi-agent software engineering team**
 
+![ForgeLab demo](demo.gif)
+
 <!-- TODO: replace with a screenshot or demo GIF -->
 <!-- Reference: docs/demo.html has an interactive prototype -->
 
@@ -55,6 +57,30 @@ It's model-agnostic by design. Swap the local model, connect your own API key, o
 4. Watch the agents work in real time: research, plan, code, review, test
 5. Interrupt at any point to add context or change direction
 6. Get a diff + test results you can actually trust
+
+---
+
+## Demo
+
+The animation above shows ForgeLab fixing [arrow-py/arrow issue #1148](https://github.com/arrow-py/arrow/issues/1148) — a timezone bug where `humanize()` reports past dates as future. No external docs were referenced; the agents grep the codebase and reason their way to the fix.
+
+### Regenerating the GIF
+
+```bash
+# 1. Clone the target repo at the pre-fix commit
+bash demo/setup.sh
+
+# 2. Start the scripted demo server (no Ollama required)
+forgelab demo
+
+# 3. Start the frontend
+cd frontend && npm run dev
+
+# 4. Open http://localhost:5173, submit the task, screen-record
+#    Kap (macOS): select window → record → export as GIF
+```
+
+Use `forgelab demo --speed 0.5` to stream messages faster for a shorter GIF.
 
 ---
 
