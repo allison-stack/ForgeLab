@@ -39,6 +39,9 @@ packages = ["src/forgelab"]
 [tool.hatch.build.targets.wheel.force-include]
 "src/forgelab/personas" = "forgelab/personas"
 
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
