@@ -22,6 +22,16 @@ def main() -> None:
     demo.add_argument("--port", type=int, default=8000)
     demo.add_argument("--host", default="127.0.0.1")
 
+    benchmark_parser = sub.add_parser("benchmark", help="Run benchmark against SWE-bench Lite tasks")
+    benchmark_parser.add_argument(
+        "--tasks", default="benchmark/tasks.json",
+        help="Path to tasks JSON (default: benchmark/tasks.json)",
+    )
+    benchmark_parser.add_argument(
+        "--output", default="benchmark/results",
+        help="Output directory (default: benchmark/results)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "start":
@@ -42,6 +52,12 @@ def main() -> None:
         cmd = [sys.executable, "-m", "uvicorn", "forgelab.demo_server:app",
                "--host", args.host, "--port", str(args.port)]
         subprocess.run(cmd, env=env, check=True)
+
+    elif args.command == "benchmark":
+        if not os.path.exists(args.tasks):
+            sys.exit(f"Tasks file not found: {args.tasks}")
+        from forgelab.benchmark_runner import run_benchmark
+        run_benchmark(tasks_path=args.tasks, output_dir=args.output)
 
     else:
         parser.print_help()
