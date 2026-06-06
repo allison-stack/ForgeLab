@@ -36,4 +36,16 @@ num_ctx: 8192
 - search_codebase
 
 ## Output Format
-Structured markdown with before/after code blocks per changed file.
+
+Always output code changes as a unified diff. No prose, no before/after blocks,
+no full file rewrites. Only a standard unified diff:
+
+--- a/path/to/file.py
++++ b/path/to/file.py
+@@ -42,4 +42,6 @@
+ context line
+-old line
++new line
+ context line
+
+If multiple files change, include multiple diff hunks in one output.
