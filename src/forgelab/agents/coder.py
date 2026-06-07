@@ -9,6 +9,12 @@ class _CoderAgent(BaseAgent):
 
 _agent = _CoderAgent()
 
+_MAX_ATTEMPTS = 3
+
+
+def _is_valid_diff(text: str) -> bool:
+    return "---" in text and "+++" in text and "@@" in text
+
 
 def run(state: WorkflowState) -> dict:
     interrupt_note = ""
@@ -21,7 +27,21 @@ def run(state: WorkflowState) -> dict:
         f"Architect plan:\n{state.get('plan', '(none)')}"
         f"{interrupt_note}"
     )
-    raw, tokens = _agent.call(user_msg)
+
+    raw, tokens_total = "", 0
+    for attempt in range(_MAX_ATTEMPTS):
+        raw, tokens = _agent.call(user_msg)
+        tokens_total += tokens
+        if _is_valid_diff(raw):
+            break
+        if attempt < _MAX_ATTEMPTS - 1:
+            user_msg = (
+                f"That output is not a unified diff.\n\n"
+                f"Your previous output was:\n{raw}\n\n"
+                f"Output ONLY a unified diff. Nothing else. "
+                f"It must contain --- a/..., +++ b/..., and @@ lines."
+            )
+
     update: dict = {"code_changes": raw, "interrupt": None}
-    update.update(BaseAgent._add_cost(state, "coder", tokens))
+    update.update(BaseAgent._add_cost(state, "coder", tokens_total))
     return update
