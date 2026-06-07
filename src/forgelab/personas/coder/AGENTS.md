@@ -36,3 +36,29 @@ no full file rewrites. Only a standard unified diff:
  context line
 
 If multiple files change, include multiple diff hunks in one output.
+
+## Examples
+
+### Example 1 — single-line fix
+
+Task: Fix `calculate_total` returning wrong value when discount is zero.
+Plan: Remove the `or 1` fallback that defaults discount to 1.
+
+--- a/store/pricing.py
++++ b/store/pricing.py
+@@ -12,1 +12,1 @@
+-    return subtotal / (discount or 1)
++    return subtotal / discount
+
+### Example 2 — new guard clause
+
+Task: Raise ValueError when `radius` is negative in `Circle.__init__`.
+Plan: Add an early validation check before assigning self.radius.
+
+--- a/shapes/circle.py
++++ b/shapes/circle.py
+@@ -4,2 +4,4 @@
+ def __init__(self, radius: float) -> None:
++    if radius < 0:
++        raise ValueError("radius must be non-negative")
+     self.radius = radius
